@@ -36,7 +36,7 @@ export function useUser() {
 
     fetchUser();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
       setUser(session?.user || null);
       if (session?.user) {
         supabase
@@ -44,7 +44,7 @@ export function useUser() {
           .select('*')
           .eq('id', session.user.id)
           .single()
-          .then(({ data }) => setProfile(data as UserProfile));
+          .then(({ data }: any) => setProfile(data as UserProfile));
       } else {
         setProfile(null);
       }

@@ -46,19 +46,21 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     let userId: string | null = user?.id || null;
     let planLimits = PLANS.free.limits;
+    let currentCount = 0;
 
     if (user) {
       // Check user limits
-      const { data: profile } = await supabase
+      const { data: profileData } = await supabase
         .from('profiles')
         .select('subscription_status, scans_used_this_month')
         .eq('id', user.id)
         .single();
 
-      if (profile) {
-        planLimits = PLANS[profile.subscription_status]?.limits || PLANS.free.limits;
+      if (profileData) {
+        planLimits = PLANS[profileData.subscription_status]?.limits || PLANS.free.limits;
+        currentCount = profileData.scans_used_this_month || 0;
 
-        if (profile.scans_used_this_month >= planLimits.scansPerMonth) {
+        if (currentCount >= planLimits.scansPerMonth) {
           return NextResponse.json(
             {
               error: 'Scan limit reached',
@@ -95,7 +97,7 @@ export async function POST(request: NextRequest) {
     if (userId) {
       await supabase
         .from('profiles')
-        .update({ scans_used_this_month: (profile as any)?.scans_used_this_month + 1 || 1 })
+        .update({ scans_used_this_month: currentCount + 1 })
         .eq('id', userId);
     }
 

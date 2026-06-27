@@ -90,7 +90,7 @@ export default function FreeScanPage() {
                 <>
                   <div className="grid md:grid-cols-2 gap-6">
                     <ComplianceScore score={scanResult.compliance_score || 0} total={scanResult.total_violations} />
-                    <BigSixSummary bigSix={scanResult.big_sis || { contrast: 0, alt_text: 0, labels: 0, links: 0, buttons: 0, lang: 0 }} />
+                    <BigSixSummary bigSix={scanResult.big_six || { contrast: 0, alt_text: 0, labels: 0, links: 0, buttons: 0, lang: 0 }} />
                   </div>
 
                   <div className="bg-surface border border-border rounded-xl p-6">

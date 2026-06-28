@@ -187,7 +187,7 @@ export async function runScan(params: RunScanParams): Promise<ScanOutput> {
 
         // Inject axe-core from CDN
         await page.addScriptTag({
-          url: 'https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.9.1/axe.min.js'
+          url: 'https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.8.4/axe.min.js'
         })
 
         // Wait for axe to be ready

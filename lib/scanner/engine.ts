@@ -4,6 +4,8 @@ import { getFixGuide, getFixGuideDescription } from './violations';
 import { discoverPages } from './crawler';
 import puppeteer from 'puppeteer-core'
 import chromium from '@sparticuz/chromium-min'
+import fs from 'fs'
+import path from 'path'
 
 const SCAN_TIMEOUT = 30000;
 
@@ -140,13 +142,17 @@ function getWcagLevel(ruleId: string, wcagTags: string[]): 'A' | 'AA' | 'AAA' {
 }
 
 export async function runScan(params: RunScanParams): Promise<ScanOutput> {
-  const { url: rawUrl, maxPages = 1, wcagLevel = 'AA', axeCoreSource } = params;
+  const { url: rawUrl, maxPages = 1, wcagLevel = 'AA' } = params;
   const url = normalizeUrl(rawUrl);
 
   const allViolations: Omit<ScanViolation, 'id' | 'scan_id' | 'created_at'>[] = [];
 
   let browser: any = null;
   let pagesScanned = 0;
+
+  // Read axe-core content at runtime
+  const axePath = path.join(process.cwd(), 'node_modules', 'axe-core', 'axe.min.js')
+  const axeSource = fs.readFileSync(axePath, 'utf8')
 
   try {
     browser = await puppeteer.launch({
@@ -178,23 +184,26 @@ export async function runScan(params: RunScanParams): Promise<ScanOutput> {
           timeout: SCAN_TIMEOUT,
         });
 
-        // Inject axe-core source directly
-        const axeSource = require('axe-core').source
+        // Wait for page to fully load
+        await page.waitForTimeout(2000)
+
+        // Inject axe as a script tag with content
         await page.addScriptTag({ content: axeSource })
 
-        // Wait for axe to be available on window
-        await page.waitForFunction(() => typeof (window as any).axe !== 'undefined', {
-          timeout: 10000
+        // Verify axe loaded
+        const axeLoaded = await page.evaluate(() => {
+          return typeof (window as any).axe !== 'undefined'
         })
 
-        // Run axe evaluation
+        console.log('Axe loaded:', axeLoaded)
+
+        if (!axeLoaded) {
+          throw new Error('axe-core failed to load on page')
+        }
+
+        // Run axe
         const results = await page.evaluate(async () => {
-          return await (window as any).axe.run(document, {
-            runOnly: {
-              type: 'tag',
-              values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'best-practice']
-            }
-          })
+          return await (window as any).axe.run()
         })
 
         return { results, pageUrl };

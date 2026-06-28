@@ -98,6 +98,13 @@ export default function LoginPage() {
 
             {error && <p className="text-sm text-danger">{error}</p>}
 
+            <div className="flex justify-end">
+              <Link href="/forgot-password" 
+                className="text-purple-400 hover:text-purple-300 text-sm">
+                Forgot password?
+              </Link>
+            </div>
+
             <button
               type="submit"
               disabled={loading}

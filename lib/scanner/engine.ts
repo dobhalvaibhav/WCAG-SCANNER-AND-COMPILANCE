@@ -3,7 +3,7 @@ import { calculateComplianceScore, calculateBigSix } from './scoring';
 import { getFixGuide, getFixGuideDescription } from './violations';
 import { discoverPages } from './crawler';
 import puppeteer from 'puppeteer-core'
-import chromium from '@sparticuz/chromium'
+import chromium from '@sparticuz/chromium-min'
 
 const SCAN_TIMEOUT = 30000;
 
@@ -152,7 +152,9 @@ export async function runScan(params: RunScanParams): Promise<ScanOutput> {
     browser = await puppeteer.launch({
       args: chromium.args,
       defaultViewport: chromium.defaultViewport,
-      executablePath: await chromium.executablePath(),
+      executablePath: await chromium.executablePath(
+        'https://github.com/Sparticuz/chromium/releases/download/v127.0.0/chromium-v127.0.0-pack.tar'
+      ),
       headless: chromium.headless,
     });
 

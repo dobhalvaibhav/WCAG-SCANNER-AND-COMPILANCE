@@ -58,6 +58,12 @@ export async function POST(request: NextRequest) {
           quantity: 1,
         },
       ],
+      // Metadata on the session itself — accessible in checkout.session.completed
+      // without needing to expand the subscription
+      metadata: {
+        userId: user.id,
+        planId: plan_id,
+      },
       subscription_data: {
         metadata: {
           userId: user.id,

@@ -88,6 +88,7 @@ declare module 'stripe' {
     checkout: { sessions: { create: (params: any) => Promise<any> } };
     billingPortal: { sessions: { create: (params: any) => Promise<any> } };
     customers: { create: (params: any) => Promise<any> };
+    subscriptions: { retrieve: (id: string) => Promise<any> };
     webhooks: { constructEvent: (body: string, sig: string, secret: string) => any };
   }
 }

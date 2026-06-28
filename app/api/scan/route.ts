@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { isValidUrl } from '@/lib/utils';
 import { PLANS } from '@/lib/stripe/plans';
 import { z } from 'zod';
@@ -17,18 +17,13 @@ const MAX_REQUESTS_PER_WINDOW = 10;
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    // ── Auth client (respects RLS) ── used ONLY for reading user session
+    const authClient = await createClient();
 
     // Rate limiting
     const ip = request.headers.get('x-forwarded-for') || 'unknown';
     const now = Date.now();
-    const lastRequest = rateLimitMap.get(ip);
-    if (lastRequest && now - lastRequest < RATE_LIMIT_WINDOW / MAX_REQUESTS_PER_WINDOW) {
-      // Simple check — more robust rate limiting would track counts
-      rateLimitMap.set(ip, now);
-    } else {
-      rateLimitMap.set(ip, now);
-    }
+    rateLimitMap.set(ip, now);
 
     // Parse and validate
     const body = await request.json();
@@ -42,22 +37,25 @@ export async function POST(request: NextRequest) {
 
     const { url, max_pages, wcag_level } = parsed.data;
 
-    // Get user session (may be null for free anonymous scans)
-    const { data: { user } } = await supabase.auth.getUser();
+    // Get user session
+    const { data: { user } } = await authClient.auth.getUser();
     let userId: string | null = user?.id || null;
     let planLimits = PLANS.free.limits;
     let currentCount = 0;
 
+    // ── Service client (bypasses RLS) ── used for ALL DB writes
+    const db = createServiceClient();
+
     if (user) {
       // Check user limits
-      const { data: profileData } = await supabase
+      const { data: profileData } = await db
         .from('profiles')
         .select('subscription_status, scans_used_this_month')
         .eq('id', user.id)
         .single();
 
       if (profileData) {
-        planLimits = PLANS[profileData.subscription_status]?.limits || PLANS.free.limits;
+        planLimits = PLANS[profileData.subscription_status as keyof typeof PLANS]?.limits || PLANS.free.limits;
         currentCount = profileData.scans_used_this_month || 0;
 
         if (currentCount >= planLimits.scansPerMonth) {
@@ -76,11 +74,11 @@ export async function POST(request: NextRequest) {
     // Cap pages to plan limit server-side
     const cappedPages = Math.min(max_pages, planLimits.pagesPerScan);
 
-    // Insert scan record
+    // Insert scan record (service role bypasses RLS)
     const scanId = crypto.randomUUID();
-    const { error: insertError } = await supabase.from('scans').insert({
+    const { error: insertError } = await db.from('scans').insert({
       id: scanId,
-      user_id: userId || '00000000-0000-0000-0000-000000000000',
+      user_id: userId,
       url,
       status: 'pending',
       pages_requested: cappedPages,
@@ -95,14 +93,13 @@ export async function POST(request: NextRequest) {
 
     // Increment scan count for authenticated users
     if (userId) {
-      await supabase
+      await db
         .from('profiles')
         .update({ scans_used_this_month: currentCount + 1 })
         .eq('id', userId);
     }
 
-    // Trigger the scan asynchronously (fire and forget in this simple setup)
-    // In production, you'd use a job queue. Here we use a non-blocking approach.
+    // Trigger the scan asynchronously (fire and forget)
     triggerScan(scanId, url, cappedPages, wcag_level).catch(console.error);
 
     return NextResponse.json({
@@ -125,18 +122,28 @@ async function triggerScan(
   maxPages: number,
   wcagLevel: 'A' | 'AA' | 'AAA'
 ) {
-  const supabase = await createServerClient();
+  // Service client — background writes bypass RLS
+  const db = createServiceClient();
 
   try {
     // Mark as running
-    await supabase.from('scans').update({ status: 'running' }).eq('id', scanId);
+    await db.from('scans').update({ status: 'running' }).eq('id', scanId);
+
+    // Read axe-core source HERE (real Node.js context, not webpack-compiled)
+    // and pass it to the scan engine to avoid path-resolution issues.
+    const fs = await import('fs');
+    const path = await import('path');
+    const axeCoreSource = fs.readFileSync(
+      path.join(process.cwd(), 'node_modules', 'axe-core', 'axe.js'),
+      'utf8',
+    );
 
     // Dynamic import to avoid bundling puppeteer in edge
     const { runScan } = await import('@/lib/scanner/engine');
-    const result = await runScan({ url, maxPages, wcagLevel });
+    const result = await runScan({ url, maxPages, wcagLevel, axeCoreSource });
 
     // Update scan record
-    const { error: updateError } = await supabase
+    const { error: updateError } = await db
       .from('scans')
       .update({
         status: result.scan.status,
@@ -174,7 +181,7 @@ async function triggerScan(
         help_url: v.help_url,
       }));
 
-      const { error: violationsError } = await supabase
+      const { error: violationsError } = await db
         .from('violations')
         .insert(violationsToInsert);
 
@@ -184,7 +191,7 @@ async function triggerScan(
     }
   } catch (error) {
     console.error('Scan failed:', error);
-    await supabase
+    await db
       .from('scans')
       .update({
         status: 'failed',
@@ -193,10 +200,4 @@ async function triggerScan(
       })
       .eq('id', scanId);
   }
-}
-
-// Helper to create a server client for background tasks
-async function createServerClient() {
-  const { createClient } = await import('@/lib/supabase/server');
-  return createClient();
 }

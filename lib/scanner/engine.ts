@@ -1,9 +1,16 @@
-import type { ScanResult, ScanViolation, BigSixCounts } from '@/types/scan';
+import type { ScanViolation, BigSixCounts } from '@/types/scan';
 import { calculateComplianceScore, calculateBigSix } from './scoring';
 import { getFixGuide, getFixGuideDescription } from './violations';
 import { discoverPages } from './crawler';
 
 const SCAN_TIMEOUT = 30000;
+
+// Instead of trying to resolve axe-core from inside a webpack-compiled module
+// (where require('fs'), process.cwd(), etc. may be shimmed), the caller
+// (the API route handler — real Node.js context) is expected to read the
+// axe-core source and pass it in via the optional `axeCoreSource` parameter.
+// If omitted, we fall back to the local read (which works in plain Node but
+// may fail in Next.js webpack-compiled bundles).
 
 interface AxeViolation {
   id: string;
@@ -28,10 +35,28 @@ interface RunScanParams {
   url: string;
   maxPages?: number;
   wcagLevel?: 'A' | 'AA' | 'AAA';
+  /** Caller-provided axe-core source — avoids webpack path issues */
+  axeCoreSource?: string;
 }
 
 interface ScanOutput {
-  scan: Omit<ScanResult, 'id' | 'user_id' | 'created_at'>;
+  scan: {
+    url: string;
+    status: string;
+    pages_scanned: number;
+    pages_requested: number;
+    compliance_score: number | null;
+    total_violations: number;
+    critical_count: number;
+    serious_count: number;
+    moderate_count: number;
+    minor_count: number;
+    wcag_level: string;
+    big_six: BigSixCounts | null;
+    error_message: string | null;
+    started_at: string;
+    completed_at: string;
+  };
   violations: Omit<ScanViolation, 'id' | 'scan_id' | 'created_at'>[];
 }
 
@@ -120,7 +145,7 @@ function getWcagLevel(ruleId: string, wcagTags: string[]): 'A' | 'AA' | 'AAA' {
 }
 
 export async function runScan(params: RunScanParams): Promise<ScanOutput> {
-  const { url: rawUrl, maxPages = 1, wcagLevel = 'AA' } = params;
+  const { url: rawUrl, maxPages = 1, wcagLevel = 'AA', axeCoreSource } = params;
   const url = normalizeUrl(rawUrl);
 
   const allViolations: Omit<ScanViolation, 'id' | 'scan_id' | 'created_at'>[] = [];
@@ -138,13 +163,14 @@ export async function runScan(params: RunScanParams): Promise<ScanOutput> {
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
         '--disable-gpu',
-        '--disable-web-security',
+        '--no-first-run',
+        '--no-zygote',
+        '--single-process',
       ],
     });
 
     const scanPage = async (pageUrl: string) => {
-      const context = await browser.createIncognitoBrowserContext();
-      const page = await context.newPage();
+      const page = await browser.newPage();
 
       try {
         await page.setDefaultNavigationTimeout(SCAN_TIMEOUT);
@@ -158,9 +184,15 @@ export async function runScan(params: RunScanParams): Promise<ScanOutput> {
           timeout: SCAN_TIMEOUT,
         });
 
-        // Inject axe-core
-        const axePath = require.resolve('axe-core');
-        await page.addScriptTag({ path: axePath });
+        // Inject axe-core — prefer caller-provided source (read in real Node.js),
+        // fall back to local fs read (works outside webpack-compiled bundles)
+        const finalSource = axeCoreSource || (() => {
+          const _fs = require('fs');
+          const _path = require('path');
+          const root = process.cwd();
+          return _fs.readFileSync(_path.join(root, 'node_modules', 'axe-core', 'axe.js'), 'utf8');
+        })();
+        await page.addScriptTag({ content: finalSource });
 
         // Run axe
         const results: AxeResult = await page.evaluate(
@@ -186,7 +218,7 @@ export async function runScan(params: RunScanParams): Promise<ScanOutput> {
 
         return { results, pageUrl };
       } finally {
-        await context.close();
+        await page.close();
       }
     };
 
@@ -218,8 +250,7 @@ export async function runScan(params: RunScanParams): Promise<ScanOutput> {
 
     // Crawl additional pages if requested
     if (maxPages > 1 && pagesScanned < maxPages) {
-      const mainPageContext = await browser.createIncognitoBrowserContext();
-      const mainPage = await mainPageContext.newPage();
+      const mainPage = await browser.newPage();
 
       try {
         await mainPage.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
@@ -257,7 +288,7 @@ export async function runScan(params: RunScanParams): Promise<ScanOutput> {
           }
         }
       } finally {
-        await mainPageContext.close();
+        try { await mainPage.close(); } catch { /* already closed */ }
       }
     }
 

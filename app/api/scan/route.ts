@@ -157,7 +157,7 @@ async function triggerScan(
 
     // Insert violations — mapped from new ScanViolation structure
     if (result.violations.length > 0) {
-      const violationsToInsert = result.violations.map((v) => ({
+      const violationsToInsert = result.violations.map((v: any) => ({
         scan_id: scanId,
         rule_id: v.id,
         rule_description: v.description?.slice(0, 500) || v.help?.slice(0, 500) || '',

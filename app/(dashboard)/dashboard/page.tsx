@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ScanLine } from 'lucide-react'
+import { PLANS } from '@/lib/stripe/plans'
 
 export default async function DashboardPage() {
   const cookieStore = cookies()
@@ -75,13 +76,8 @@ export default async function DashboardPage() {
     })
   }
 
-  // Limit info
-  const limits: Record<string, any> = {
-    free: { scansPerMonth: 5, pagesPerScan: 5, monitoredSites: 1 },
-    pro: { scansPerMonth: 50, pagesPerScan: 50, monitoredSites: 10 },
-    agency: { scansPerMonth: 500, pagesPerScan: 200, monitoredSites: 50 },
-  }
-  const planLimits = limits[planName] || limits.free
+  // Limit info from PLANS in lib/stripe/plans.ts
+  const planLimits = PLANS[planName]?.limits || PLANS.free.limits
 
   const scoreColor = (score: number) => {
     if (score >= 75) return '#22D3A0'

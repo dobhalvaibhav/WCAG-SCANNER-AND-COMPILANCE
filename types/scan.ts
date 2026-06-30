@@ -36,6 +36,7 @@ export interface ScanResult {
   moderate_count: number;
   minor_count: number;
   wcag_level: 'A' | 'AA' | 'AAA';
+  has_overlay_widget: boolean;
   big_six: BigSixCounts | null;
   error_message: string | null;
   started_at: string | null;

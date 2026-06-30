@@ -15,6 +15,7 @@ export const PLANS: Record<string, Plan> = {
       apiAccess: false,
       agencyDashboard: false,
       whiteLabel: false,
+      aiFixesPerMonth: 0,
     },
     features: [
       '3 scans per month',
@@ -37,6 +38,7 @@ export const PLANS: Record<string, Plan> = {
       apiAccess: true,
       agencyDashboard: false,
       whiteLabel: false,
+      aiFixesPerMonth: 100,
     },
     features: [
       '50 scans per month',
@@ -62,6 +64,7 @@ export const PLANS: Record<string, Plan> = {
       apiAccess: true,
       agencyDashboard: true,
       whiteLabel: true,
+      aiFixesPerMonth: 500,
     },
     features: [
       '200 scans per month',

@@ -182,6 +182,7 @@ async function triggerScan(
         moderate_count: result.moderate,
         minor_count: result.minor,
         big_six: result.bigSix as any,
+        has_overlay_widget: result.hasOverlayWidget === true,
         error_message: null,
         completed_at: new Date().toISOString(),
       })

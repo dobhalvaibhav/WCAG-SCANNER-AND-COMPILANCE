@@ -23,6 +23,7 @@ export interface PlanLimits {
   apiAccess: boolean;
   agencyDashboard: boolean;
   whiteLabel: boolean;
+  aiFixesPerMonth: number;
 }
 
 export interface Plan {

@@ -2,6 +2,8 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
+import AIFixButton from '@/components/reports/AIFixButton'
+import { calculateLawsuitRisk } from '@/lib/scanner/riskScore'
 
 export default async function ReportDetailPage({
   params
@@ -50,6 +52,15 @@ export default async function ReportDetailPage({
     : score >= 50 ? '#F59E0B'
     : '#EF4444'
 
+  // Calculate lawsuit risk
+  const risk = calculateLawsuitRisk({
+    compliance_score: score,
+    critical_count: scan?.critical_count ?? 0,
+    serious_count: scan?.serious_count ?? 0,
+    big_six: scan?.big_six || {},
+    has_overlay_widget: scan?.has_overlay_widget ?? false,
+  })
+
   const impactColors: Record<string, string> = {
     critical: '#FF3B3B',
     serious: '#FF7A00',
@@ -89,7 +100,49 @@ export default async function ReportDetailPage({
               text-sm transition-colors">
             Export CSV
           </a>
+          <a href={`/api/reports/${params.id}/statement`}
+            className="bg-[#1A1A24] hover:bg-[#2A2A3A] border 
+              border-[#2A2A3A] text-white px-4 py-2 rounded-lg 
+              text-sm transition-colors">
+            Generate Statement
+          </a>
         </div>
+      </div>
+
+      {/* Lawsuit Risk Assessment */}
+      <div
+        className="rounded-xl p-5 mb-6 border"
+        style={{
+          backgroundColor: risk.color + '15',
+          borderColor: risk.color + '40',
+        }}
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">
+              Lawsuit Risk Assessment
+            </p>
+            <p className="text-2xl font-bold" style={{ color: risk.color }}>
+              {risk.label}
+            </p>
+          </div>
+          <div
+            className="text-3xl font-bold w-16 h-16 rounded-full flex items-center justify-center"
+            style={{ backgroundColor: risk.color + '20', color: risk.color }}
+          >
+            {risk.score}
+          </div>
+        </div>
+        <ul className="mt-4 space-y-1">
+          {risk.factors.map((f, i) => (
+            <li key={i} className="text-sm text-gray-300 flex gap-2">
+              <span style={{ color: risk.color }}>•</span> {f}
+            </li>
+          ))}
+        </ul>
+        <p className="text-xs text-gray-500 mt-3">
+          Based on documented 2025 ADA lawsuit data. Not a legal prediction — consult an attorney for case-specific advice.
+        </p>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -201,6 +254,10 @@ export default async function ReportDetailPage({
                         </p>
                       </div>
                     )}
+                    <AIFixButton
+                      violationId={v.id}
+                      existingFix={v.ai_fix_html ? { html: v.ai_fix_html, explanation: v.ai_fix_explanation } : null}
+                    />
                     {(v.help_url || v.helpUrl) && (
                       <a href={v.help_url || v.helpUrl}
                         target="_blank"

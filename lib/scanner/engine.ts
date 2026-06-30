@@ -86,6 +86,17 @@ export async function runScan(url: string) {
       })
     })
 
+    // Detect overlay / accessibility widget scripts
+    const hasOverlayWidget = await page.evaluate(() => {
+      const overlaySelectors = [
+        '[class*="accessibe"]', '[id*="accessibe"]',
+        '[class*="userway"]', '[id*="userway"]',
+        '[class*="accessibility-widget"]',
+        'script[src*="accessibe"]', 'script[src*="userway"]',
+      ]
+      return overlaySelectors.some(sel => document.querySelector(sel) !== null)
+    })
+
     const data = JSON.parse(rawJson)
     const violations = data.violations || []
 
@@ -110,6 +121,7 @@ export async function runScan(url: string) {
       violations,
       passes: data.passes || 0,
       totalViolations: violations.length,
+      hasOverlayWidget,
       critical,
       serious,
       moderate,

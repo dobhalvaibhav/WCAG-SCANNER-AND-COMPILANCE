@@ -220,16 +220,50 @@ async function triggerScan(
     // Send email notification for authenticated users
     if (userEmail && !isAnonymous) {
       try {
-        const { sendScanCompleteEmail } = await import('@/lib/email/resend');
+        const { Resend } = await import('resend');
+        const resend = new Resend(process.env.RESEND_API_KEY!);
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://wcag-scanner-tau.vercel.app';
-        await sendScanCompleteEmail(
-          userEmail,
-          url,
-          result.score,
-          result.totalViolations,
-          scanId,
-          appUrl
-        );
+        const scoreColor = result.score >= 75 ? '#22D3A0'
+          : result.score >= 50 ? '#F59E0B'
+          : '#EF4444';
+
+        await resend.emails.send({
+          from: 'WCAG Scanner <reports@yourdomain.com>',
+          to: userEmail,
+          subject: `Scan complete: ${url} scored ${result.score}/100`,
+          html: `
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; background: #0A0A0F; color: #F0F0FF; padding: 40px; border-radius: 12px;">
+              <h1 style="color: #6C47FF; margin-bottom: 4px;">Scan Complete</h1>
+              <p style="color: #8B8BA7;">${url}</p>
+
+              <div style="background: #111118; border: 1px solid #2A2A3A; border-radius: 12px; padding: 24px; margin: 24px 0; text-align: center;">
+                <div style="font-size: 56px; font-weight: 800; color: ${scoreColor};">
+                  ${result.score}/100
+                </div>
+                <div style="color: #8B8BA7; margin-top: 8px;">Compliance Score</div>
+              </div>
+
+              <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+                <tr>
+                  <td style="padding: 12px; border: 1px solid #2A2A3A; color: #FF3B3B;">Critical: ${result.critical}</td>
+                  <td style="padding: 12px; border: 1px solid #2A2A3A; color: #FF7A00;">Serious: ${result.serious}</td>
+                  <td style="padding: 12px; border: 1px solid #2A2A3A; color: #FFB800;">Moderate: ${result.moderate}</td>
+                  <td style="padding: 12px; border: 1px solid #2A2A3A; color: #64B5F6;">Minor: ${result.minor}</td>
+                </tr>
+              </table>
+
+              <a href="${appUrl}/reports/${scanId}"
+                style="display: inline-block; background: #6C47FF; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+                View Full Report →
+              </a>
+
+              <p style="color: #8B8BA7; font-size: 11px; margin-top: 32px; border-top: 1px solid #2A2A3A; padding-top: 16px;">
+                Automated scan using axe-core. Results are not legal advice.
+                Detects ~57% of WCAG issues automatically.
+              </p>
+            </div>
+          `
+        });
       } catch (emailErr) {
         console.error('Failed to send scan complete email:', emailErr);
       }

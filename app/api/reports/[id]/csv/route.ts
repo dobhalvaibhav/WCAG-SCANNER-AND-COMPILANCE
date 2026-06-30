@@ -1,35 +1,51 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const cookieStore = cookies();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() { return cookieStore.getAll() },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            );
+          },
+        },
+      }
+    );
 
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Fetch scan data
-    const { data: scan } = await supabase
-      .from('scans')
-      .select('*')
+    // Fetch the report by its ID (params.id is a report ID, not a scan ID)
+    const { data: report, error } = await supabase
+      .from('reports')
+      .select('*, scans(*)')
       .eq('id', params.id)
+      .eq('user_id', user.id)
       .single();
 
-    if (!scan || (scan.user_id !== user.id)) {
+    if (error || !report) {
+      console.log('CSV report lookup failed:', error, params.id, user.id);
       return NextResponse.json({ error: 'Report not found' }, { status: 404 });
     }
 
-    // Fetch violations
+    // Fetch violations using the scan_id from the report
     const { data: violations } = await supabase
       .from('violations')
       .select('*')
-      .eq('scan_id', params.id)
-      .order('impact', { ascending: false });
+      .eq('scan_id', report.scan_id);
 
     const headers = [
       'Rule ID',
@@ -45,7 +61,7 @@ export async function GET(
       [
         v.rule_id || v.id || '',
         v.impact || '',
-        v.description || v.rule_description || '',
+        (v.rule_description || v.description || '').replace(/"/g, '""'),
         v.wcag_criterion || '',
         (v.element_html || '').replace(/"/g, '""'),
         (v.fix_summary || v.help || '').replace(/"/g, '""'),
@@ -60,7 +76,7 @@ export async function GET(
     return new NextResponse(csv, {
       headers: {
         'Content-Type': 'text/csv',
-        'Content-Disposition': `attachment; filename="wcag-report-${params.id.slice(0, 8)}.csv"`,
+        'Content-Disposition': `attachment; filename="wcag-report-${params.id}.csv"`,
       },
     });
   } catch (error: any) {

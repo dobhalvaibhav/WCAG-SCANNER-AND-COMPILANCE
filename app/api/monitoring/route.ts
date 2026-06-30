@@ -5,10 +5,16 @@ import { z } from 'zod';
 
 const createMonitorSchema = z.object({
   url: z.string().url(),
-  label: z.string().optional(),
-  scan_frequency: z.enum(['daily', 'weekly', 'monthly']).optional().default('weekly'),
-  alert_on_regression: z.boolean().optional().default(true),
-  alert_email: z.string().email().optional(),
+  frequency: z.enum(['weekly', 'monthly']).optional().default('weekly'),
+});
+
+const toggleMonitorSchema = z.object({
+  id: z.string().uuid(),
+  is_active: z.boolean(),
+});
+
+const deleteMonitorSchema = z.object({
+  id: z.string().uuid(),
 });
 
 export async function GET() {
@@ -22,11 +28,19 @@ export async function GET() {
 
     const { data: sites, error } = await supabase
       .from('monitored_sites')
-      .select('*')
+      .select(`
+        *,
+        last_scan:scans!monitored_sites_last_scan_id_fkey (
+          compliance_score,
+          total_violations,
+          status
+        )
+      `)
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
     if (error) {
+      console.error('Failed to fetch monitored sites:', error);
       return NextResponse.json({ error: 'Failed to fetch monitored sites' }, { status: 500 });
     }
 
@@ -54,6 +68,14 @@ export async function POST(request: NextRequest) {
 
     const planLimits = PLANS[profile?.subscription_status || 'free']?.limits || PLANS.free.limits;
 
+    // Free plan cannot monitor
+    if (planLimits.monitoredSites === 0) {
+      return NextResponse.json(
+        { error: 'Site monitoring is available on Pro and Agency plans. Upgrade to continue.' },
+        { status: 403 }
+      );
+    }
+
     const { count } = await supabase
       .from('monitored_sites')
       .select('*', { count: 'exact', head: true })
@@ -72,26 +94,59 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
     }
 
-    const { url, label, scan_frequency, alert_on_regression, alert_email } = parsed.data;
+    const { url, frequency } = parsed.data;
 
     const { data: site, error } = await supabase
       .from('monitored_sites')
       .insert({
         user_id: user.id,
         url,
-        label: label || null,
-        scan_frequency,
-        alert_on_regression,
-        alert_email: alert_email || null,
+        scan_frequency: frequency,
+        is_active: true,
       })
       .select()
       .single();
 
     if (error) {
+      console.error('Failed to create monitored site:', error);
       return NextResponse.json({ error: 'Failed to create monitored site' }, { status: 500 });
     }
 
     return NextResponse.json({ site });
+  } catch (error: any) {
+    return NextResponse.json({ error: error?.message || 'Server error' }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const parsed = toggleMonitorSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    }
+
+    const { id, is_active } = parsed.data;
+
+    const { error } = await supabase
+      .from('monitored_sites')
+      .update({ is_active })
+      .eq('id', id)
+      .eq('user_id', user.id);
+
+    if (error) {
+      console.error('Failed to toggle site:', error);
+      return NextResponse.json({ error: 'Failed to update site' }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Server error' }, { status: 500 });
   }
@@ -107,11 +162,12 @@ export async function DELETE(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { id } = body;
-
-    if (!id) {
-      return NextResponse.json({ error: 'Site ID required' }, { status: 400 });
+    const parsed = deleteMonitorSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
     }
+
+    const { id } = parsed.data;
 
     const { error } = await supabase
       .from('monitored_sites')
@@ -120,6 +176,7 @@ export async function DELETE(request: NextRequest) {
       .eq('user_id', user.id);
 
     if (error) {
+      console.error('Failed to delete site:', error);
       return NextResponse.json({ error: 'Failed to delete site' }, { status: 500 });
     }
 

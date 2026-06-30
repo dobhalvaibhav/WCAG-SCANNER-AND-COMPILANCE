@@ -252,7 +252,7 @@ async function triggerScan(
                 </tr>
               </table>
 
-              <a href="${appUrl}/dashboard/reports/${scanId}"
+              <a href="${appUrl}/reports/${scanId}"
                 style="display: inline-block; background: #6C47FF; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;">
                 View Full Report →
               </a>

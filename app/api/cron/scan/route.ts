@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
                   </tr>
                 </table>
 
-                <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://wcag-scanner-tau.vercel.app'}/dashboard/reports/${report.id}"
+                <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://wcag-scanner-tau.vercel.app'}/reports/${report.id}"
                   style="display: inline-block; background: #6C47FF; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;">
                   View Full Report →
                 </a>

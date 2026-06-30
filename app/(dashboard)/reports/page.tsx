@@ -84,7 +84,7 @@ export default async function ReportsPage() {
             : '#EF4444'
 
           return (
-            <Link key={report.id} href={`/dashboard/reports/${report.id}`}>
+            <Link key={report.id} href={`/reports/${report.id}`}>
               <div className="bg-[#111118] border border-[#2A2A3A] rounded-xl p-6 
                 hover:border-purple-500 transition-all cursor-pointer">
                 <div className="flex items-center justify-between">

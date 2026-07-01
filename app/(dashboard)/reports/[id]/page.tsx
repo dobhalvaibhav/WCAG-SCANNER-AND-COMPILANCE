@@ -79,7 +79,7 @@ export default async function ReportDetailPage({
   return (
     <>
     <div className="p-6 max-w-5xl mx-auto">
-      <Link href="/reports"
+      <Link href="/dashboard"
         className="text-gray-400 hover:text-white text-sm 
           mb-6 inline-flex items-center gap-2">
         ← Back to Reports

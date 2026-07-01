@@ -10,7 +10,7 @@ export async function sendScanCompleteEmail(
   appUrl: string
 ) {
   await resend.emails.send({
-    from: 'WCAG Scanner <noreply@yourdomain.com>',
+    from: 'WCAG Scanner <zerohisoka0@gmail.com>',
     to,
     subject: `Scan Complete: ${scanUrl} scored ${score}/100`,
     html: `
@@ -44,7 +44,7 @@ export async function sendWelcomeEmail(
   appUrl: string
 ) {
   await resend.emails.send({
-    from: 'WCAG Scanner <noreply@yourdomain.com>',
+    from: 'WCAG Scanner <zerohisoka0@gmail.com>',
     to,
     subject: 'Welcome to WCAG Scanner',
     html: `

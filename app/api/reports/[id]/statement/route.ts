@@ -95,7 +95,7 @@ export async function GET(
     </ul>
 
     <h3>Feedback</h3>
-    <p>We welcome your feedback on the accessibility of our website. Please let us know if you encounter accessibility barriers by contacting us at <strong>[YOUR CONTACT EMAIL]</strong>.</p>
+    <p>We welcome your feedback on the accessibility of our website. Please let us know if you encounter accessibility barriers by contacting us at <strong>zerohisoka0@gmail.com</strong>.</p>
 
     <h3>Limitations</h3>
     <p>Despite our best efforts, automated testing tools detect approximately 57% of WCAG success criteria. Some issues may only be identified through manual testing. We are committed to identifying and fixing any remaining barriers as they are discovered.</p>

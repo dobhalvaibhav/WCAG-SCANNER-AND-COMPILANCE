@@ -27,14 +27,35 @@ export default function ResetPasswordPage() {
       return
     }
     setLoading(true)
-    const { error } = await supabase.auth.updateUser({ password })
-    if (error) {
-      setError(error.message)
-    } else {
+    setError('')
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+
+      if (!session) {
+        setError('Your reset link has expired. Please request a new one.')
+        setLoading(false)
+        return
+      }
+
+      const { error: updateError } = await supabase.auth.updateUser({
+        password
+      })
+
+      if (updateError) {
+        setError(updateError.message)
+        setLoading(false)
+        return
+      }
+
       setDone(true)
       setTimeout(() => router.push('/dashboard'), 2000)
+    } catch (err: any) {
+      console.error('Password update error:', err)
+      setError('Something went wrong. Please try again or request a new link.')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   return (

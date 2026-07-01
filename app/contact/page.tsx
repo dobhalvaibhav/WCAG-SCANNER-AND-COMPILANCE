@@ -29,10 +29,10 @@ export default function ContactPage() {
                 For account, billing, or technical issues.
               </p>
               <a
-                href="mailto:support@wcagscanner.com"
+                href="mailto:zerohisoka0@gmail.com"
                 className="text-accent hover:text-accent-hover text-sm"
               >
-                support@wcagscanner.com
+                zerohisoka0@gmail.com
               </a>
             </div>
 
@@ -61,10 +61,10 @@ export default function ContactPage() {
                 Volume pricing or white-label questions.
               </p>
               <a
-                href="mailto:agency@wcagscanner.com"
+                href="mailto:zerohisoka0@gmail.com"
                 className="text-accent hover:text-accent-hover text-sm"
               >
-                agency@wcagscanner.com
+                zerohisoka0@gmail.com
               </a>
             </div>
           </div>

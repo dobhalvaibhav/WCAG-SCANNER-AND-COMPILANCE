@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Check, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Check, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useUser } from '@/hooks/useUser';
@@ -12,7 +12,6 @@ import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 
 export default function PricingPage() {
-  const [annual, setAnnual] = useState(false);
   const { user } = useUser();
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
@@ -33,7 +32,7 @@ export default function PricingPage() {
         const res = await fetch('/api/stripe/checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ plan_id: planId, annual }),
+          body: JSON.stringify({ plan_id: planId, annual: false }),
         });
         if (res.ok) {
           const { url } = await res.json();
@@ -69,38 +68,11 @@ export default function PricingPage() {
             <p className="text-text-secondary max-w-xl mx-auto">
               Start free. Upgrade when you need more scans, monitoring, and professional reports.
             </p>
-
-            {/* Annual toggle */}
-            <div className="flex items-center justify-center gap-3 mt-8">
-              <span className={`text-sm ${!annual ? 'text-text-primary' : 'text-text-muted'}`}>
-                Monthly
-              </span>
-              <button
-                onClick={() => setAnnual(!annual)}
-                className={`relative w-12 h-6 rounded-full transition-colors ${
-                  annual ? 'bg-accent' : 'bg-surface-elevated'
-                }`}
-                aria-label="Toggle annual billing"
-              >
-                <span
-                  className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
-                    annual ? 'translate-x-6' : ''
-                  }`}
-                />
-              </button>
-              <span className={`text-sm ${annual ? 'text-text-primary' : 'text-text-muted'}`}>
-                Annual
-              </span>
-              <span className="ml-1 px-2 py-0.5 bg-success/10 text-success text-xs rounded-full">
-                Save 17%
-              </span>
-            </div>
           </motion.div>
 
           <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {Object.values(PLANS).map((plan, i) => {
               const isPopular = plan.id === 'pro';
-              const userPlan = user ? null : null;
               return (
                 <motion.div
                   key={plan.id}
@@ -109,10 +81,7 @@ export default function PricingPage() {
                   transition={{ delay: i * 0.15 }}
                 >
                   <PricingCard
-                    plan={{
-                      ...plan,
-                      price: annual && plan.price > 0 ? Math.round(plan.price * 10) / 12 : plan.price,
-                    }}
+                    plan={plan}
                     isPopular={isPopular}
                     onSelect={handleSelect}
                     loading={loading === plan.id}

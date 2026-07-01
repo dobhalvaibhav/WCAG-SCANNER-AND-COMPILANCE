@@ -229,7 +229,7 @@ async function triggerScan(
           : '#EF4444';
 
         await resend.emails.send({
-          from: 'WCAG Scanner <reports@yourdomain.com>',
+          from: 'WCAG Scanner <zerohisoka0@gmail.com>',
           to: userEmail,
           subject: `Scan complete: ${url} scored ${result.score}/100`,
           html: `

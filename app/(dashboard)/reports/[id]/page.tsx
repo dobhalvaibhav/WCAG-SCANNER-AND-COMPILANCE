@@ -4,6 +4,7 @@ import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import AIFixButton from '@/components/reports/AIFixButton'
 import { calculateLawsuitRisk } from '@/lib/scanner/riskScore'
+import ComplianceAssistant from '@/components/chat/ComplianceAssistant'
 
 export default async function ReportDetailPage({
   params
@@ -28,6 +29,13 @@ export default async function ReportDetailPage({
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
+
+  // Fetch plan for gated features
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('subscription_status')
+    .eq('id', user.id)
+    .single()
 
   const { data: report, error } = await supabase
     .from('reports')
@@ -69,6 +77,7 @@ export default async function ReportDetailPage({
   }
 
   return (
+    <>
     <div className="p-6 max-w-5xl mx-auto">
       <Link href="/reports"
         className="text-gray-400 hover:text-white text-sm 
@@ -275,5 +284,10 @@ export default async function ReportDetailPage({
         </div>
       )}
     </div>
+    <ComplianceAssistant
+      reportId={params.id}
+      userPlan={profile?.subscription_status || 'free'}
+    />
+    </>
   )
 }

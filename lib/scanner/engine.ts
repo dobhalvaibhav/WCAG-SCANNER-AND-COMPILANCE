@@ -87,15 +87,21 @@ export async function runScan(url: string) {
     })
 
     // Detect overlay / accessibility widget scripts
-    const hasOverlayWidget = await page.evaluate(() => {
-      const overlaySelectors = [
-        '[class*="accessibe"]', '[id*="accessibe"]',
-        '[class*="userway"]', '[id*="userway"]',
-        '[class*="accessibility-widget"]',
-        'script[src*="accessibe"]', 'script[src*="userway"]',
-      ]
-      return overlaySelectors.some(sel => document.querySelector(sel) !== null)
-    })
+    let hasOverlayWidget = false
+    try {
+      hasOverlayWidget = await page.evaluate(() => {
+        const overlaySelectors = [
+          '[class*="accessibe"]', '[id*="accessibe"]',
+          '[class*="userway"]', '[id*="userway"]',
+          '[class*="accessibility-widget"]',
+          'script[src*="accessibe"]', 'script[src*="userway"]',
+        ]
+        return overlaySelectors.some(sel => document.querySelector(sel) !== null)
+      })
+    } catch (e) {
+      // Overlay detection is non-critical — don't let it crash the scan
+      console.log('Overlay detection skipped:', (e as Error)?.message || e)
+    }
 
     const data = JSON.parse(rawJson)
     const violations = data.violations || []

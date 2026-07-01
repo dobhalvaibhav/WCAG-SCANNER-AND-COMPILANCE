@@ -1,7 +1,8 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState('')
@@ -9,12 +10,44 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
+  const [exchanging, setExchanging] = useState(true) // exchanging code on mount
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
+
+  // Exchange the code from the email link on mount, if present
+  useEffect(() => {
+    const code = searchParams.get('code')
+    const errorCode = searchParams.get('error_code')
+    const errorDesc = searchParams.get('error_description')
+
+    if (errorCode === 'otp_expired') {
+      setError('This reset link has expired. Please request a new one.')
+      setExchanging(false)
+      return
+    }
+
+    if (!code) {
+      // No code in URL — maybe session is already set (navigated here manually)
+      setExchanging(false)
+      return
+    }
+
+    // Exchange the code for a session
+    supabase.auth.exchangeCodeForSession(code).then(({ error: exchangeError }) => {
+      if (exchangeError) {
+        console.error('Code exchange failed:', exchangeError.message)
+        setError(exchangeError.message === 'Email link is invalid or has expired'
+          ? 'This reset link has expired. Please request a new one.'
+          : 'Failed to verify your reset link. Please request a new one.')
+      }
+      setExchanging(false)
+    })
+  }, [searchParams, supabase.auth])
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -56,6 +89,37 @@ export default function ResetPasswordPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (exchanging) {
+    return (
+      <div className="min-h-screen bg-[#0A0A0F] flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="bg-[#111118] border border-[#2A2A3A] rounded-2xl p-8 text-center">
+            <p className="text-gray-400">Verifying your reset link...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error && error.includes('expired')) {
+    return (
+      <div className="min-h-screen bg-[#0A0A0F] flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="bg-[#111118] border border-[#2A2A3A] rounded-2xl p-8 text-center">
+            <p className="text-red-400 mb-4">{error}</p>
+            <Link
+              href="/forgot-password"
+              className="inline-block bg-purple-600 hover:bg-purple-700 
+                text-white px-6 py-3 rounded-lg font-medium transition-colors"
+            >
+              Request New Link
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (

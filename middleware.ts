@@ -7,7 +7,6 @@ const PUBLIC_API_PATHS = ['/api/stripe/webhook', '/api/scan']; // free scan is p
 
 // These paths must always load without a session cookie
 const PUBLIC_PATHS = [
-  '/auth/confirm',
   '/reset-password',
   '/forgot-password',
   '/login',

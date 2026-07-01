@@ -5,8 +5,24 @@ const PROTECTED_PATHS = ['/dashboard', '/agency', '/billing', '/settings', '/mon
 const API_PROTECTED_BASE = '/api/';
 const PUBLIC_API_PATHS = ['/api/stripe/webhook', '/api/scan']; // free scan is public
 
+// These paths must always load without a session cookie
+const PUBLIC_PATHS = [
+  '/auth/confirm',
+  '/reset-password',
+  '/forgot-password',
+  '/login',
+  '/signup',
+  '/',
+];
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Skip all auth checks for public paths
+  if (PUBLIC_PATHS.some(path => pathname === path)) {
+    const { supabaseResponse } = await updateSession(request);
+    return supabaseResponse;
+  }
 
   const { supabaseResponse, user } = await updateSession(request);
 

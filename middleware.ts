@@ -9,6 +9,7 @@ const PUBLIC_API_PATHS = ['/api/stripe/webhook', '/api/scan']; // free scan is p
 const PUBLIC_PATHS = [
   '/reset-password',
   '/forgot-password',
+  '/auth/callback',
   '/login',
   '/signup',
   '/',
